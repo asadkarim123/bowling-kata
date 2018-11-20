@@ -99,6 +99,8 @@ def populateGlobalVariables = {
 def label = "mypod-${UUID.randomUUID().toString()}"
 def project = "alert-inquiry-205619"
 
+agent { label "scala_agent" }
+
 podTemplate(label: label, containers: [
     containerTemplate(name: 'gcloud', image: 'google/cloud-sdk:latest', ttyEnabled: true, command: 'cat'),
     containerTemplate(name: 'sbt', image: 'hseeberger/scala-sbt:8u181_2.12.7_1.2.6', ttyEnabled: true, command: 'cat')
@@ -112,7 +114,6 @@ node {
     
         container('sbt') {
         stage('Build') {
-            agent { label "scala_agent" }
             sh('sbt sbtVersion')
             sh('cd bowling-kata;')
             sh('sbt clean assembly')
