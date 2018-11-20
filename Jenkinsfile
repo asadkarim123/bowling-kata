@@ -101,10 +101,15 @@ node {
         stage('Checkout') {
             checkout scm
         }
-
+    
         stage('Build') {
-            sh "sbt clean assembly"
-            step $class: 'JUnitResultArchiver', testResults: '**/TEST-*.xml'
+            sh('sbt sbtVersion')
+            sh('cd bowling-kata;')
+            sh('sbt clean assembly')
+            sh('ls -al ~/')
+            archiveArtifacts artifacts: 'target/**/*.jar', fingerprint: true
+            //sh "sbt clean assembly"
+            //step $class: 'JUnitResultArchiver', testResults: '**/TEST-*.xml'
 
             populateGlobalVariables()
 
