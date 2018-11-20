@@ -96,10 +96,14 @@ def populateGlobalVariables = {
     testSummary = getTestSummary()
 }
 
+def label = "mypod-${UUID.randomUUID().toString()}"
+def project = "alert-inquiry-205619"
+
 podTemplate(label: label, containers: [
     containerTemplate(name: 'gcloud', image: 'google/cloud-sdk:latest', ttyEnabled: true, command: 'cat'),
     containerTemplate(name: 'sbt', image: 'hseeberger/scala-sbt:8u181_2.12.7_1.2.6', ttyEnabled: true, command: 'cat')
-  ]) {
+  ]) 
+    
 node {
     try {
         stage('Checkout') {
@@ -247,4 +251,4 @@ node {
     }
     }
 }
-}
+
