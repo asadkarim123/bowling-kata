@@ -104,6 +104,10 @@ podTemplate(label: label, containers: [
     containerTemplate(name: 'sbt', image: 'hseeberger/scala-sbt:8u181_2.12.7_1.2.6', ttyEnabled: true, command: 'cat')
 ]) {
     
+agent {
+       label "scala_agent"
+    }
+    
 node {
     try {
         stage('Checkout') {
