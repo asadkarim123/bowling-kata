@@ -103,8 +103,8 @@ node {
         }
 
         stage('Build') {
-            //sh "./gradlew clean build"
-            //step $class: 'JUnitResultArchiver', testResults: '**/TEST-*.xml'
+            sh "./sbt clean assembly"
+            step $class: 'JUnitResultArchiver', testResults: '**/TEST-*.xml'
 
             populateGlobalVariables()
 
