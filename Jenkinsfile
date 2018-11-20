@@ -103,7 +103,7 @@ node {
         }
 
         stage('Build') {
-            sh "./sbt clean assembly"
+            sh "sbt clean assembly"
             step $class: 'JUnitResultArchiver', testResults: '**/TEST-*.xml'
 
             populateGlobalVariables()
