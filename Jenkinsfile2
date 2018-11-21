@@ -92,7 +92,7 @@ def slackNotifySuccess() {
 
     def colorSlack = '#229954'
 
-    notifySlack("", slackNotificationChannel, [
+    notifySlack("", "#alerts", [
         [
             title: "*SUCCESS*: Job `${env.JOB_NAME}` [<${env.RUN_DISPLAY_URL}|#${env.BUILD_NUMBER}>] (<${env.RUN_CHANGES_DISPLAY_URL}|  Changes>)",
             title_link: "${env.BUILD_URL}",
