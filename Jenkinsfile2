@@ -9,12 +9,14 @@ def label = "mypod-${UUID.randomUUID().toString()}"
 def project = "alert-inquiry-205619"
 def slackNotificationChannel = "#alerts"
 
+@NonCPS
 def getGitAuthor = { ->
     def commit = sh(returnStdout: true, script: 'git rev-parse HEAD')
     def author = sh(returnStdout: true, script: "git --no-pager show -s --format='%an' ${commit}").trim()
     return author
 }
 
+@NonCPS
 def getLastCommitMessage = { ->
     message = sh(returnStdout: true, script: 'git log -1 --pretty=%B').trim()
     return message
