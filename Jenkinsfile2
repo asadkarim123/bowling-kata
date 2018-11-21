@@ -11,7 +11,6 @@ def slackNotificationChannel = "#alerts"
 def author = ""
 def message = ""
 def testSummary = ""
-def failedTests = ""
 
 def getGitAuthor = { 
     def commit = sh(returnStdout: true, script: 'git rev-parse HEAD')
@@ -64,7 +63,6 @@ def populateGlobalVariables = {
     author = getGitAuthor()
     message = getLastCommitMessage()
     testSummary = getTestSummary()
-    failedTests = getFailedTests()
 }
 
 
