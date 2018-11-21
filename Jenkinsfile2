@@ -8,18 +8,18 @@ import hudson.tasks.junit.CaseResult
 def label = "mypod-${UUID.randomUUID().toString()}"
 def project = "alert-inquiry-205619"
 def slackNotificationChannel = "#alerts"
+def author = ""
+def message = ""
+def testSummary = ""
+def failedTests = ""
 
-@NonCPS
-def getGitAuthor = { ->
+def getGitAuthor = { 
     def commit = sh(returnStdout: true, script: 'git rev-parse HEAD')
-    def author = sh(returnStdout: true, script: "git --no-pager show -s --format='%an' ${commit}").trim()
-    return author
+    author = sh(returnStdout: true, script: "git --no-pager show -s --format='%an' ${commit}").trim()
 }
 
-@NonCPS
-def getLastCommitMessage = { ->
-    def message = sh(returnStdout: true, script: 'git log -1 --pretty=%B').trim()
-    return message
+def getLastCommitMessage = { 
+    message = sh(returnStdout: true, script: 'git log -1 --pretty=%B').trim()
 }
 
 @NonCPS
@@ -60,6 +60,14 @@ def getFailedTests = { ->
     return failedTestsString
 }
 
+def populateGlobalVariables = {
+    author = getGitAuthor()
+    message = getLastCommitMessage()
+    testSummary = getTestSummary()
+    failedTests = getFailedTests()
+}
+
+
 def notifySlack(text, channel, attachments) {
     def slackURL = 'https://hooks.slack.com/services/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'
     def jenkinsIcon = 'https://wiki.jenkins-ci.org/download/attachments/2916393/logo.png'
@@ -93,17 +101,14 @@ def slackNotifyStarted() {
 def slackNotifySuccess() {
 
     def colorSlack = '#229954'
-    def commit = sh(returnStdout: true, script: 'git rev-parse HEAD')
-    def author = sh(returnStdout: true, script: "git --no-pager show -s --format='%an' ${commit}").trim()
-    def message = sh(returnStdout: true, script: 'git log -1 --pretty=%B').trim()
 
     notifySlack("", "#alerts", [
         [
             title: "*SUCCESS*: Job `${env.JOB_NAME}` [<${env.RUN_DISPLAY_URL}|#${env.BUILD_NUMBER}>] (<${env.RUN_CHANGES_DISPLAY_URL}|  Changes>)",
             title_link: "${env.BUILD_URL}",
             color: "${colorSlack}",
-            author_name: "${author}",
-            text: "${message}",
+            author_name: "${env.AUTHOR}",
+            text: "${env.MESSAGE}",
             fields: [
                 [
                     title: "Branch",
