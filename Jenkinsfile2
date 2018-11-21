@@ -1,0 +1,191 @@
+import net.sf.json.JSONArray;
+import net.sf.json.JSONObject;
+import hudson.tasks.test.AbstractTestResultAction
+import hudson.model.Actionable
+
+def label = "mypod-${UUID.randomUUID().toString()}"
+def project = "alert-inquiry-205619"
+
+podTemplate(label: label, containers: [
+    containerTemplate(name: 'gcloud', image: 'google/cloud-sdk:latest', ttyEnabled: true, command: 'cat'),
+    containerTemplate(name: 'sbt', image: 'spikerlabs/scala-sbt:scala-2.11.12-sbt-1.2.6', ttyEnabled: true, command: 'cat')
+  ]) {
+
+ansiColor('xterm') {
+    timestamps {
+          logstash {
+            node(label) {
+
+                    try {
+
+                            container('gcloud') {
+                                stage('1 - Clone repository') {
+                                    withCredentials([file(credentialsId: 'key-sa', variable: 'GC_KEY')]) {
+                                            //sh("gcloud auth activate-service-account --key-file=${GC_KEY};")
+                                            //sh("gcloud source repos clone rmg-de-ml --project=${project};")
+                                        }
+                                    }
+                                    checkout scm
+
+                                    env.AUTHOR = sh(returnStdout: true, script: "git --no-pager show -s --format='%an'").trim()
+                                    env.MESSAGE = sh(returnStdout: true, script: 'git log -1 --pretty=%B').trim()
+
+                                    slackNotifyStarted()
+
+                                }
+
+                            container('sbt') {
+                                stage('2 - Compile') {
+                                    sh('sbt compile;')
+                                }
+                                stage('3 - Check Styles') {
+                                    sh('sbt scalastyle;')
+                                    checkstyle pattern: 'target/scalastyle-result.xml'
+
+                                    sh('sbt dependencyUpdatesReport;')
+                                    archiveArtifacts artifacts: 'target/dependency-updates.txt', fingerprint: false
+                                    env.DEPENDENCY_UPDATES = readFile 'target/dependency-updates.txt'
+                                }
+                                stage('4 - Automated Tests') {
+
+                                    parallel "4.1 - Unit Tests": {
+                                            sh('sbt clean coverage test;sbt coverageReport;')
+                                            step([$class: 'ScoveragePublisher', reportDir: 'target/scala-2.11/scoverage-report', reportFile: 'scoverage.xml'])
+                                            junit 'target/junit/*.xml'
+
+                                            script {
+                                                AbstractTestResultAction testResultAction =  currentBuild.rawBuild.getAction(AbstractTestResultAction.class)
+                                                if (testResultAction != null) {
+                                                    def totalNumberOfTests = testResultAction.totalCount
+                                                    def failedNumberOfTests = testResultAction.failCount
+                                                    def failedDiff = testResultAction.failureDiffString
+                                                    def skippedNumberOfTests = testResultAction.skipCount
+                                                    def passedNumberOfTests = totalNumberOfTests - failedNumberOfTests - skippedNumberOfTests
+                                                    def testReport = "Tests Report:\n Passed: ${passedNumberOfTests}; Failed: ${failedNumberOfTests} ${failedDiff}; Skipped: ${skippedNumberOfTests}  out of ${totalNumberOfTests} "
+                                                    env.TEST_REPORT = testReport
+                                                }
+                                            }
+                                        },
+
+                                        "4.2 - Integration Tests": {
+                                            sh('sleep 10s')
+                                       },
+
+                                        "4.3 - Performance Tests": {
+                                            sh('sleep 20s')
+                                        }
+
+                                }
+                                stage('5 - Package') {
+                                    sh('sbt package;')
+                                    archiveArtifacts artifacts: 'target/**/*.jar', fingerprint: true
+                                }
+                                stage('6 - Documentation') {
+                                    sh('sbt doc;')
+                                    //step([$class: 'ScoveragePublisher', reportDir: 'target/scala-2.11/api/', reportFile: 'index.html'])
+                                    // publish html
+                                    publishHTML target: [
+                                        allowMissing: false,
+                                        alwaysLinkToLastBuild: false,
+                                        keepAll: true,
+                                        reportDir: 'target/scala-2.11/api',
+                                        reportFiles: '*',
+                                        reportName: 'Scala Docs'
+                                      ]
+                                }
+                                stage('7 - Publish') {
+
+                                    try{
+                                        sh('sbt publish;')
+                                    } catch (e) {
+                                        retry(2) {
+                                            sleep 10
+                                            sh('sbt publish;')
+                                        }
+                                    }
+
+                                }
+
+                                currentBuild.result = "SUCCESS"
+                                slackNotifySuccess()
+                            }
+                        }
+                  catch (e) {
+                      currentBuild.result = "FAILURE"
+                      slackNotify(currentBuild.result)
+                      throw e
+                  } finally {
+                      //slackNotify(currentBuild.result)
+                  }
+                }
+            }
+        }
+    }
+}
+
+@NonCPS
+def slackNotify(String buildStatus = 'STARTED') {
+
+    // if the status for Build is null this would mean a successful build.
+    buildStatus = buildStatus ?: 'SUCCESS'
+
+    def colorSlack
+    if (buildStatus == 'STARTED') {
+        colorSlack = '#D4DADF'
+    } else if (buildStatus == 'SUCCESS') {
+        colorSlack = '#BDFFC3'
+    } else if (buildStatus == 'UNSTABLE') {
+        colorSlack = '#FFFE89'
+    }
+    else if (buildStatus == 'ENDED') {
+        colorSlack = '#FFFE89'
+    }
+   else {
+        colorSlack = '#FF9FA1'
+    }
+
+    def slackMessage = ""
+    def subject = "${buildStatus}: Job `${env.JOB_NAME}` [<${env.RUN_DISPLAY_URL}|#${env.BUILD_NUMBER}>] (<${env.RUN_CHANGES_DISPLAY_URL}|  Changes>)"
+    slackMessage = slackMessage + subject + "\n\t"
+
+    if (buildStatus != 'STARTED') {
+        slackMessage = slackMessage + env.MESSAGE + " by (" + env.AUTHOR + ")\n\t"
+        slackMessage = slackMessage + env.DEPENDENCY_UPDATES + "\n\t"
+    }
+
+    slackSend channel: '#alerts', color: colorSlack, message: slackMessage
+}
+
+@NonCPS
+def slackNotifyStarted() {
+
+    def colorSlack = '#D4DADF'
+
+    def slackMessage = ""
+    def subject = "*STARTED*: Job `${env.JOB_NAME}` [<${env.RUN_DISPLAY_URL}|#${env.BUILD_NUMBER}>] (<${env.RUN_CHANGES_DISPLAY_URL}|  Changes>)"
+    slackMessage = slackMessage + subject + "\n\t"
+    slackMessage = slackMessage + "*" + env.MESSAGE + "* by (" + env.AUTHOR + ")\n\t"
+
+    slackSend channel: '#alerts', color: colorSlack, message: slackMessage
+}
+
+@NonCPS
+def slackNotifySuccess() {
+
+    def colorSlack = '#229954'
+
+    def slackMessage = ""
+    def subject = "*SUCCESS*: Job `${env.JOB_NAME}` [<${env.RUN_DISPLAY_URL}|#${env.BUILD_NUMBER}>] (<${env.RUN_CHANGES_DISPLAY_URL}|  Changes>)"
+    slackMessage = slackMessage + subject + "\n\t"
+    slackMessage = slackMessage + "*" + env.MESSAGE + "* by (" + env.AUTHOR + ")\n\t"
+
+    if (env.TEST_REPORT != null) {
+        slackMessage = slackMessage + "```" + env.TEST_REPORT + "```\n\t"
+    }
+
+    if (env.DEPENDENCY_UPDATES != null) {
+        slackMessage = slackMessage + "```" + env.DEPENDENCY_UPDATES + "```\n\t"
+    }
+
+    slackSend channel: '#alerts', color: colorSlack, message: slackMessage
+}
