@@ -96,7 +96,7 @@ def slackNotifySuccess() {
         [
             title: "*SUCCESS*: Job `${env.JOB_NAME}` [<${env.RUN_DISPLAY_URL}|#${env.BUILD_NUMBER}>] (<${env.RUN_CHANGES_DISPLAY_URL}|  Changes>)",
             title_link: "${env.BUILD_URL}",
-            color: "${buildColor}",
+            color: "${colorSlack}",
             author_name: "${getGitAuthor()}",
             text: "${getLastCommitMessage()}",
             fields: [
@@ -104,11 +104,6 @@ def slackNotifySuccess() {
                     title: "Branch",
                     value: "${env.GIT_BRANCH}",
                     short: true
-                ],
-                [
-                    title: "Last Commit",
-                    value: "${message}",
-                    short: false
                 ],
                 [
                     title: "Test Results",
