@@ -99,6 +99,19 @@ def slackNotifyStarted() {
 def slackNotifySuccess() {
 
     def colorSlack = '#229954'
+    def testResultAction = currentBuild.rawBuild.getAction(AbstractTestResultAction.class)
+    def summary = ""
+
+    if (testResultAction != null) {
+        def total = testResultAction.getTotalCount()
+        def failed = testResultAction.getFailCount()
+        def failedDiff = testResultAction.failureDiffString
+        def skipped = testResultAction.getSkipCount()
+
+        summary = "Passed: ${passed}; Failed: ${failed} ${failedDiff}; Skipped: ${skipped}  out of ${total} "
+    } else {
+        summary = "No tests found"
+    }
 
     notifySlack("", "#alerts", [
         [
@@ -115,7 +128,7 @@ def slackNotifySuccess() {
                 ],
                 [
                     title: "Test Results",
-                    value: "${getTestSummary()}",
+                    value: "${summary}",
                     short: true
                 ]
             ]
