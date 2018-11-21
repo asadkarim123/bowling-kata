@@ -35,7 +35,6 @@ def getTestSummary = { ->
         summary = "No tests found"
     }
     return summary
-    }
 }
 
 @NonCPS
