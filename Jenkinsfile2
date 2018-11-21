@@ -1,3 +1,4 @@
+
 import net.sf.json.JSONArray;
 import net.sf.json.JSONObject;
 import hudson.tasks.test.AbstractTestResultAction
@@ -5,6 +6,192 @@ import hudson.model.Actionable
 
 def label = "mypod-${UUID.randomUUID().toString()}"
 def project = "alert-inquiry-205619"
+
+
+def getGitAuthor = { ->
+    def commit = sh(returnStdout: true, script: 'git rev-parse HEAD')
+    def author = sh(returnStdout: true, script: "git --no-pager show -s --format='%an' ${commit}").trim()
+    return author
+}
+
+def getLastCommitMessage = { ->
+    message = sh(returnStdout: true, script: 'git log -1 --pretty=%B').trim()
+    return message
+}
+
+@NonCPS
+def getTestSummary = { ->
+    def testResultAction = currentBuild.rawBuild.getAction(AbstractTestResultAction.class)
+    def summary = ""
+
+    if (testResultAction != null) {
+        def total = testResultAction.getTotalCount()
+        def failed = testResultAction.getFailCount()
+        def failedDiff = testResultAction.failureDiffString
+        def skipped = testResultAction.getSkipCount()
+
+        summary = "Passed: ${passed}; Failed: ${failed} ${failedDiff}; Skipped: ${skipped}  out of ${total} "
+    } else {
+        summary = "No tests found"
+    }
+    return summary
+    }
+}
+
+@NonCPS
+def getFailedTests = { ->
+    def testResultAction = currentBuild.rawBuild.getAction(AbstractTestResultAction.class)
+    def failedTestsString = "```"
+
+    if (testResultAction != null) {
+        def failedTests = testResultAction.getFailedTests()
+
+        if (failedTests.size() > 9) {
+            failedTests = failedTests.subList(0, 8)
+        }
+
+        for(CaseResult cr : failedTests) {
+            failedTestsString = failedTestsString + "${cr.getFullDisplayName()}:\n${cr.getErrorDetails()}\n\n"
+        }
+        failedTestsString = failedTestsString + "```"
+    }
+    return failedTestsString
+}
+
+def notifySlack(text, channel, attachments) {
+    def slackURL = 'https://hooks.slack.com/services/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'
+    def jenkinsIcon = 'https://wiki.jenkins-ci.org/download/attachments/2916393/logo.png'
+
+    def payload = JsonOutput.toJson([text: text,
+        channel: channel,
+        username: "Jenkins",
+        icon_url: jenkinsIcon,
+        attachments: attachments
+    ])
+
+    sh "curl -X POST --data-urlencode \'payload=${payload}\' ${slackURL}"
+}
+
+
+
+@NonCPS
+def slackNotifyStarted() {
+
+    def colorSlack = '#D4DADF'
+
+    def slackMessage = ""
+    def subject = "*STARTED*: Job `${env.JOB_NAME}` [<${env.RUN_DISPLAY_URL}|#${env.BUILD_NUMBER}>] (<${env.RUN_CHANGES_DISPLAY_URL}|  Changes>)"
+    slackMessage = slackMessage + subject + "\n\t"
+    slackMessage = slackMessage + "*" + env.MESSAGE + "* by (" + env.AUTHOR + ")\n\t"
+
+    slackSend channel: '#alerts', color: colorSlack, message: slackMessage
+}
+
+@NonCPS
+def slackNotifySuccess() {
+
+    def colorSlack = '#229954'
+
+    def slackMessage = ""
+    def subject = "*SUCCESS*: Job `${env.JOB_NAME}` [<${env.RUN_DISPLAY_URL}|#${env.BUILD_NUMBER}>] (<${env.RUN_CHANGES_DISPLAY_URL}|  Changes>)"
+    slackMessage = slackMessage + subject + "\n\t"
+    slackMessage = slackMessage + "*" + env.MESSAGE + "* by (" + env.AUTHOR + ")\n\t"
+
+    if (env.TEST_REPORT != null) {
+        slackMessage = slackMessage + "```" + env.TEST_REPORT + "```\n\t"
+    }
+
+    if (env.DEPENDENCY_UPDATES != null) {
+        slackMessage = slackMessage + "```" + env.DEPENDENCY_UPDATES + "```\n\t"
+    }
+
+    slackSend channel: '#alerts', color: colorSlack, message: slackMessage
+
+    notifySlack("", slackNotificationChannel, [
+        [
+            title: "*SUCCESS*: Job `${env.JOB_NAME}` [<${env.RUN_DISPLAY_URL}|#${env.BUILD_NUMBER}>] (<${env.RUN_CHANGES_DISPLAY_URL}|  Changes>)",
+            title_link: "${env.BUILD_URL}",
+            color: "${buildColor}",
+            author_name: "${getGitAuthor()}",
+            text: "${getLastCommitMessage()}",
+            fields: [
+                [
+                    title: "Branch",
+                    value: "${env.GIT_BRANCH}",
+                    short: true
+                ],
+                [
+                    title: "Last Commit",
+                    value: "${message}",
+                    short: false
+                ]
+                [
+                    title: "Test Results",
+                    value: "${getTestSummary()}",
+                    short: true
+                ]
+            ]
+        ],
+        [
+           "fallback": "Sunny weather!",
+           "image_url": "https://www.clipartmax.com/png/middle/165-1652318_public-domain-icons-simple-weather-icons-sunny.png"
+        ]
+    ])
+}
+
+@NonCPS
+def slackNotifyFailure() {
+
+    def colorSlack = '#FF9FA1'
+
+    def slackMessage = ""
+    def subject = "*FAILED*: Job `${env.JOB_NAME}` [<${env.RUN_DISPLAY_URL}|#${env.BUILD_NUMBER}>] (<${env.RUN_CHANGES_DISPLAY_URL}|  Changes>)"
+    slackMessage = slackMessage + subject + "\n\t"
+    slackMessage = slackMessage + "*" + env.MESSAGE + "* by (" + env.AUTHOR + ")\n\t"
+
+    if (env.TEST_REPORT != null) {
+        slackMessage = slackMessage + "```" + env.TEST_REPORT + "```\n\t"
+    }
+
+    if (env.DEPENDENCY_UPDATES != null) {
+        slackMessage = slackMessage + "```" + env.DEPENDENCY_UPDATES + "```\n\t"
+    }
+
+    slackSend channel: '#alerts', color: colorSlack, message: slackMessage
+}
+
+@NonCPS
+def slackNotify(String buildStatus = 'STARTED') {
+
+    // if the status for Build is null this would mean a successful build.
+    buildStatus = buildStatus ?: 'SUCCESS'
+
+    def colorSlack
+    if (buildStatus == 'STARTED') {
+        colorSlack = '#D4DADF'
+    } else if (buildStatus == 'SUCCESS') {
+        colorSlack = '#BDFFC3'
+    } else if (buildStatus == 'UNSTABLE') {
+        colorSlack = '#FFFE89'
+    }
+    else if (buildStatus == 'ENDED') {
+        colorSlack = '#FFFE89'
+    }
+   else {
+        colorSlack = '#FF9FA1'
+    }
+
+    def slackMessage = ""
+    def subject = "${buildStatus}: Job `${env.JOB_NAME}` [<${env.RUN_DISPLAY_URL}|#${env.BUILD_NUMBER}>] (<${env.RUN_CHANGES_DISPLAY_URL}|  Changes>)"
+    slackMessage = slackMessage + subject + "\n\t"
+
+    if (buildStatus != 'STARTED') {
+        slackMessage = slackMessage + env.MESSAGE + " by (" + env.AUTHOR + ")\n\t"
+        slackMessage = slackMessage + env.DEPENDENCY_UPDATES + "\n\t"
+    }
+
+    slackSend channel: '#alerts', color: colorSlack, message: slackMessage
+}
 
 podTemplate(label: label, containers: [
     containerTemplate(name: 'gcloud', image: 'google/cloud-sdk:latest', ttyEnabled: true, command: 'cat'),
@@ -123,69 +310,3 @@ ansiColor('xterm') {
     }
 }
 
-@NonCPS
-def slackNotify(String buildStatus = 'STARTED') {
-
-    // if the status for Build is null this would mean a successful build.
-    buildStatus = buildStatus ?: 'SUCCESS'
-
-    def colorSlack
-    if (buildStatus == 'STARTED') {
-        colorSlack = '#D4DADF'
-    } else if (buildStatus == 'SUCCESS') {
-        colorSlack = '#BDFFC3'
-    } else if (buildStatus == 'UNSTABLE') {
-        colorSlack = '#FFFE89'
-    }
-    else if (buildStatus == 'ENDED') {
-        colorSlack = '#FFFE89'
-    }
-   else {
-        colorSlack = '#FF9FA1'
-    }
-
-    def slackMessage = ""
-    def subject = "${buildStatus}: Job `${env.JOB_NAME}` [<${env.RUN_DISPLAY_URL}|#${env.BUILD_NUMBER}>] (<${env.RUN_CHANGES_DISPLAY_URL}|  Changes>)"
-    slackMessage = slackMessage + subject + "\n\t"
-
-    if (buildStatus != 'STARTED') {
-        slackMessage = slackMessage + env.MESSAGE + " by (" + env.AUTHOR + ")\n\t"
-        slackMessage = slackMessage + env.DEPENDENCY_UPDATES + "\n\t"
-    }
-
-    slackSend channel: '#alerts', color: colorSlack, message: slackMessage
-}
-
-@NonCPS
-def slackNotifyStarted() {
-
-    def colorSlack = '#D4DADF'
-
-    def slackMessage = ""
-    def subject = "*STARTED*: Job `${env.JOB_NAME}` [<${env.RUN_DISPLAY_URL}|#${env.BUILD_NUMBER}>] (<${env.RUN_CHANGES_DISPLAY_URL}|  Changes>)"
-    slackMessage = slackMessage + subject + "\n\t"
-    slackMessage = slackMessage + "*" + env.MESSAGE + "* by (" + env.AUTHOR + ")\n\t"
-
-    slackSend channel: '#alerts', color: colorSlack, message: slackMessage
-}
-
-@NonCPS
-def slackNotifySuccess() {
-
-    def colorSlack = '#229954'
-
-    def slackMessage = ""
-    def subject = "*SUCCESS*: Job `${env.JOB_NAME}` [<${env.RUN_DISPLAY_URL}|#${env.BUILD_NUMBER}>] (<${env.RUN_CHANGES_DISPLAY_URL}|  Changes>)"
-    slackMessage = slackMessage + subject + "\n\t"
-    slackMessage = slackMessage + "*" + env.MESSAGE + "* by (" + env.AUTHOR + ")\n\t"
-
-    if (env.TEST_REPORT != null) {
-        slackMessage = slackMessage + "```" + env.TEST_REPORT + "```\n\t"
-    }
-
-    if (env.DEPENDENCY_UPDATES != null) {
-        slackMessage = slackMessage + "```" + env.DEPENDENCY_UPDATES + "```\n\t"
-    }
-
-    slackSend channel: '#alerts', color: colorSlack, message: slackMessage
-}
