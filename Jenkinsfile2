@@ -124,7 +124,7 @@ def slackNotifySuccess() {
                     title: "Last Commit",
                     value: "${message}",
                     short: false
-                ]
+                ],
                 [
                     title: "Test Results",
                     value: "${getTestSummary()}",
