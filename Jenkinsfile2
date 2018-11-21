@@ -7,7 +7,7 @@ import hudson.tasks.junit.CaseResult
 
 def label = "mypod-${UUID.randomUUID().toString()}"
 def project = "alert-inquiry-205619"
-
+def slackNotificationChannel = "#alerts"
 
 def getGitAuthor = { ->
     def commit = sh(returnStdout: true, script: 'git rev-parse HEAD')
@@ -91,21 +91,6 @@ def slackNotifyStarted() {
 def slackNotifySuccess() {
 
     def colorSlack = '#229954'
-
-    def slackMessage = ""
-    def subject = "*SUCCESS*: Job `${env.JOB_NAME}` [<${env.RUN_DISPLAY_URL}|#${env.BUILD_NUMBER}>] (<${env.RUN_CHANGES_DISPLAY_URL}|  Changes>)"
-    slackMessage = slackMessage + subject + "\n\t"
-    slackMessage = slackMessage + "*" + env.MESSAGE + "* by (" + env.AUTHOR + ")\n\t"
-
-    if (env.TEST_REPORT != null) {
-        slackMessage = slackMessage + "```" + env.TEST_REPORT + "```\n\t"
-    }
-
-    if (env.DEPENDENCY_UPDATES != null) {
-        slackMessage = slackMessage + "```" + env.DEPENDENCY_UPDATES + "```\n\t"
-    }
-
-    slackSend channel: '#alerts', color: colorSlack, message: slackMessage
 
     notifySlack("", slackNotificationChannel, [
         [
