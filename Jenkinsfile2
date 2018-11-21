@@ -18,7 +18,7 @@ def getGitAuthor = { ->
 
 @NonCPS
 def getLastCommitMessage = { ->
-    message = sh(returnStdout: true, script: 'git log -1 --pretty=%B').trim()
+    def message = sh(returnStdout: true, script: 'git log -1 --pretty=%B').trim()
     return message
 }
 
@@ -93,14 +93,17 @@ def slackNotifyStarted() {
 def slackNotifySuccess() {
 
     def colorSlack = '#229954'
+    def commit = sh(returnStdout: true, script: 'git rev-parse HEAD')
+    def author = sh(returnStdout: true, script: "git --no-pager show -s --format='%an' ${commit}").trim()
+    def message = sh(returnStdout: true, script: 'git log -1 --pretty=%B').trim()
 
     notifySlack("", "#alerts", [
         [
             title: "*SUCCESS*: Job `${env.JOB_NAME}` [<${env.RUN_DISPLAY_URL}|#${env.BUILD_NUMBER}>] (<${env.RUN_CHANGES_DISPLAY_URL}|  Changes>)",
             title_link: "${env.BUILD_URL}",
             color: "${colorSlack}",
-            author_name: "${getGitAuthor()}",
-            text: "${getLastCommitMessage()}",
+            author_name: "${author}",
+            text: "${message}",
             fields: [
                 [
                     title: "Branch",
