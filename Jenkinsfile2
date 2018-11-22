@@ -11,13 +11,78 @@ def label = "mypod-${UUID.randomUUID().toString()}"
 def project = "alert-inquiry-205619"
 def slackNotificationChannel = "#alerts"
 
-@NonCPS
+def author = ""
+def message = ""
+
 def populateGitInfo() {
     def commit = sh(returnStdout: true, script: 'git rev-parse HEAD')
-    env.AUTHOR = sh(returnStdout: true, script: "git --no-pager show -s --format='%an' ${commit}").trim()
-    echo env.AUTHOR + '(inside method)'
-    env.MESSAGE = sh(returnStdout: true, script: 'git log -1 --pretty=%B').trim()
-    echo env.MESSAGE + '(inside method)'
+    author = sh(returnStdout: true, script: "git --no-pager show -s --format='%an' ${commit}").trim()
+    echo author + '(inside method)'
+    message = sh(returnStdout: true, script: 'git log -1 --pretty=%B').trim()
+    echo message + '(inside method)'
+}
+
+def notifySlack(text, channel, attachments) {
+    def slackURL = 'https://hooks.slack.com/services/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'
+    def jenkinsIcon = 'https://wiki.jenkins-ci.org/download/attachments/2916393/logo.png'
+
+    def payload = JsonOutput.toJson([text: text,
+        channel: channel,
+        username: "Jenkins",
+        icon_url: jenkinsIcon,
+        attachments: attachments
+    ])
+
+    sh "curl -X POST --data-urlencode \'payload=${payload}\' ${slackURL}"
+}
+
+def slackNotifyStarted() {
+    echo 'Notification Start'
+    def colorSlack = '#D4DADF'
+    populateGitInfo()
+    echo 'Git info populated'
+    echo author + message
+    
+    notifySlack("", "#alerts", [
+        [
+            title: "STARTED: Job `${env.JOB_NAME}` [Build #${env.BUILD_NUMBER}]",
+            title_link: "${env.BUILD_URL}",
+            color: "${colorSlack}",
+            author_name: "${author}",
+            text: "${message}",
+            actions: [
+            [
+              type: "button",
+              text: "Pipeline",
+              url: "${env.RUN_DISPLAY_URL}"
+            ],
+            [
+              type: "button",
+              text: "Changes",
+              url: "${env.RUN_CHANGES_DISPLAY_URL}",
+              style: "${colorSlack}"
+            ],
+            [
+              type: "button",
+              text: "Job history",
+              url: "${env.JOB_DISPLAY_URL}",
+              style: "primary"
+            ]
+          ],
+          fields: [
+                [
+                    title: "Git Branch",
+                    value: "${env.GIT_BRANCH}",
+                    short: true
+                ],
+                [
+                    title: "Git Commit",
+                    value: "${env.GIT_COMMIT}",
+                    short: true
+                ]
+            ]
+        ]
+    ])
 }
 
 @NonCPS
@@ -40,7 +105,7 @@ String getTestSummary() {
 }
 
 @NonCPS
-def getFailedTests = { ->
+def getFailedTests() {
     def testResultAction = currentBuild.rawBuild.getAction(AbstractTestResultAction.class)
     def failedTestsString = "```"
 
@@ -57,36 +122,6 @@ def getFailedTests = { ->
         failedTestsString = failedTestsString + "```"
     }
     return failedTestsString
-}
-
-@NonCPS
-def notifySlack(text, channel, attachments) {
-    def slackURL = 'https://hooks.slack.com/services/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'
-    def jenkinsIcon = 'https://wiki.jenkins-ci.org/download/attachments/2916393/logo.png'
-
-    def payload = JsonOutput.toJson([text: text,
-        channel: channel,
-        username: "Jenkins",
-        icon_url: jenkinsIcon,
-        attachments: attachments
-    ])
-
-    sh "curl -X POST --data-urlencode \'payload=${payload}\' ${slackURL}"
-}
-
-@NonCPS
-def slackNotifyStarted() {
-    echo 'Notification Start'
-    def colorSlack = '#D4DADF'
-    populateGitInfo()
-    echo 'Git info populated'
-    echo env.AUTHOR + env.MESSAGE
-    def slackMessage = ""
-    def subject = "*STARTED*: Job `${env.JOB_NAME}` [<${env.RUN_DISPLAY_URL}|#${env.BUILD_NUMBER}>] (<${env.RUN_CHANGES_DISPLAY_URL}|  Changes>)"
-    slackMessage = slackMessage + subject + "\n\t"
-    slackMessage = slackMessage + "*" + env.MESSAGE + "* by (" + env.AUTHOR + ")\n\t"
-
-    slackSend channel: '#alerts', color: colorSlack, message: slackMessage
 }
 
 @NonCPS
@@ -125,7 +160,7 @@ def slackNotifySuccess() {
           ],
           fields: [
                 [
-                    title: "Branch",
+                    title: "Git Branch",
                     value: "${env.GIT_BRANCH}",
                     short: true
                 ],
@@ -145,23 +180,56 @@ def slackNotifySuccess() {
 
 @NonCPS
 def slackNotifyFailure() {
-
+    echo 'Notify failure'
     def colorSlack = '#FF9FA1'
-
-    def slackMessage = ""
-    def subject = "*FAILED*: Job `${env.JOB_NAME}` [<${env.RUN_DISPLAY_URL}|#${env.BUILD_NUMBER}>] (<${env.RUN_CHANGES_DISPLAY_URL}|  Changes>)"
-    slackMessage = slackMessage + subject + "\n\t"
-    slackMessage = slackMessage + "*" + env.MESSAGE + "* by (" + env.AUTHOR + ")\n\t"
-
-    if (env.TEST_REPORT != null) {
-        slackMessage = slackMessage + "```" + env.TEST_REPORT + "```\n\t"
-    }
-
-    if (env.DEPENDENCY_UPDATES != null) {
-        slackMessage = slackMessage + "```" + env.DEPENDENCY_UPDATES + "```\n\t"
-    }
-
-    slackSend channel: '#alerts', color: colorSlack, message: slackMessage
+    def testSummary = getTestSummary()
+    echo 'Test summary completed'
+    echo 'Test summary ${testSummary}'
+    def failedTests = getFailedTests()
+    echo 'Failed tests completed'
+    echo 'Failed tests ${failedTests}'
+    
+    notifySlack("", "#alerts", [
+        [
+            title: "FAILURE: Job `${env.JOB_NAME}` [Build #${env.BUILD_NUMBER}]",
+            title_link: "${env.BUILD_URL}",
+            color: "${colorSlack}",
+            author_name: "${author}",
+            text: "${message}",
+            actions: [
+            [
+              type: "button",
+              text: "Pipeline",
+              url: "${env.RUN_DISPLAY_URL}",
+              style: "danger"
+            ],
+            [
+              type: "button",
+              text: "Changes",
+              url: "${env.RUN_CHANGES_DISPLAY_URL}",
+              style: "${colorSlack}"
+            ],
+            [
+              type: "button",
+              text: "Job history",
+              url: "${env.JOB_DISPLAY_URL}",
+              style: "primary"
+            ]
+          ],
+          fields: [
+                [
+                    title: "Test Results",
+                    value: "${testSummary}",
+                    short: true
+                ],
+                [
+                    title: "Failed tests",
+                    value: "${failedTests}",
+                    short: true
+                ]
+            ]
+        ]
+    ])
 }
 
 @NonCPS
@@ -219,7 +287,6 @@ ansiColor('xterm') {
                                     checkout scm
                                     echo 'Started'
                                     slackNotifyStarted()
-
                                 }
 
                             container('sbt') {
@@ -241,19 +308,6 @@ ansiColor('xterm') {
                                             sh('sbt clean coverage test;sbt coverageReport;')
                                             step([$class: 'ScoveragePublisher', reportDir: 'target/scala-2.11/scoverage-report', reportFile: 'scoverage.xml'])
                                             junit 'target/junit/*.xml'
-
-                                            script {
-                                                AbstractTestResultAction testResultAction =  currentBuild.rawBuild.getAction(AbstractTestResultAction.class)
-                                                if (testResultAction != null) {
-                                                    def totalNumberOfTests = testResultAction.totalCount
-                                                    def failedNumberOfTests = testResultAction.failCount
-                                                    def failedDiff = testResultAction.failureDiffString
-                                                    def skippedNumberOfTests = testResultAction.skipCount
-                                                    def passedNumberOfTests = totalNumberOfTests - failedNumberOfTests - skippedNumberOfTests
-                                                    def testReport = "Tests Report:\n Passed: ${passedNumberOfTests}; Failed: ${failedNumberOfTests} ${failedDiff}; Skipped: ${skippedNumberOfTests}  out of ${totalNumberOfTests} "
-                                                    env.TEST_REPORT = testReport
-                                                }
-                                            }
                                         },
 
                                         "4.2 - Integration Tests": {
@@ -295,14 +349,12 @@ ansiColor('xterm') {
 
                                 }
                                 echo 'Successfully completed'
-                                currentBuild.result = "SUCCESS"
                                 slackNotifySuccess()
                                 echo 'Success notification sent'
                             }
                         }
                   catch (e) {
-                      currentBuild.result = "FAILURE"
-                      slackNotify(currentBuild.result)
+                      slackNotifyFailure()
                       throw e
                   } finally {
                       //slackNotify(currentBuild.result)
