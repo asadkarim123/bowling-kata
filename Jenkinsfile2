@@ -23,7 +23,7 @@ def getLastCommitMessage = { ->
 }
 
 @NonCPS
-def getTestSummary = { ->
+String getTestSummary() { 
     def testResultAction = currentBuild.rawBuild.getAction(AbstractTestResultAction.class)
     def summary = ""
 
@@ -97,9 +97,10 @@ def slackNotifyStarted() {
 
 @NonCPS
 def slackNotifySuccess() {
-
+    echo 'Notification Success'
     def colorSlack = '#229954'
-
+    def testSummary = getTestSummary()
+    echo 'Test summary ${testSummary}'
     notifySlack("", "#alerts", [
         [
             title: "SUCCESS: Job `${env.JOB_NAME}` [Build #${env.BUILD_NUMBER}]",
@@ -134,7 +135,7 @@ def slackNotifySuccess() {
                 ],
                 [
                     title: "Test Results",
-                    value: "Placeholder for test results",
+                    value: "${testSummary}",
                     short: true
                 ]
             ]
