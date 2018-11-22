@@ -23,7 +23,7 @@ def notifySlack(String buildStatus = 'STARTED', String channel = '#alerts') {
     echo author + message
 
     @NonCPS
-    String getTestSummary = { ->
+    def getTestSummary = { ->
         def testResultAction = currentBuild.rawBuild.getAction(AbstractTestResultAction.class)
         def summary = ""
 
