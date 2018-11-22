@@ -26,7 +26,7 @@ def notifySlack(String buildStatus = 'STARTED', String channel = '#alerts') {
     def getTestSummary = { ->
         def testResultAction = currentBuild.rawBuild.getAction(AbstractTestResultAction.class)
         def summary = ""
-        echo testResultAction
+        
         if (testResultAction != null) {
             def total = testResultAction.getTotalCount()
             def failed = testResultAction.getFailCount()
@@ -60,40 +60,40 @@ def notifySlack(String buildStatus = 'STARTED', String channel = '#alerts') {
                     text: "${message}",
                     actions: [
                             [
-                                    type: "button",
-                                    text: "Run output",
-                                    url: "${env.RUN_DISPLAY_URL}",
-                                    style: "primary"
+                                type: "button",
+                                text: "Run output",
+                                url: "${env.RUN_DISPLAY_URL}",
+                                style: "primary"
                             ],
                             [
-                                    type: "button",
-                                    text: "Changes",
-                                    url: "${env.RUN_CHANGES_DISPLAY_URL}"
+                                type: "button",
+                                text: "Changes",
+                                url: "${env.RUN_CHANGES_DISPLAY_URL}"
                             ],
                             [
-                                    type: "button",
-                                    text: "Job history",
-                                    url: "${env.JOB_DISPLAY_URL}",
-                                    style: "primary"
+                                type: "button",
+                                text: "Job history",
+                                url: "${env.JOB_DISPLAY_URL}",
+                                style: "primary"
                             ]
                     ],
                     fields: [
                             [
-                                    title: "Branch",
-                                    value: "${env.GIT_BRANCH}",
-                                    short: true
+                                title: "Branch",
+                                value: "${env.GIT_BRANCH}",
+                                short: true
                             ],
                             [
-                                    title: "Test Results",
-                                    value: "Placeholder",
-                                    short: true
+                                title: "Test Results",
+                                value: "${testSummary}",
+                                short: true
                             ]
                     ]
-            ],
-            [
-                    "fallback": "Sunny weather!",
-                    "image_url": "https://www.clipartmax.com/png/middle/165-1652318_public-domain-icons-simple-weather-icons-sunny.png"
-            ]
+            ]//,
+ //           [
+ //                   "fallback": "Sunny weather!",
+ //                   "image_url": "https://www.clipartmax.com/png/middle/165-1652318_public-domain-icons-simple-weather-icons-sunny.png"
+ //           ]
     ]
     def payload = JsonOutput.toJson([text: "",
                                      channel: channel,
@@ -126,12 +126,8 @@ podTemplate(label: label, containers: [
                                 }
                             }
                             checkout scm
-
-                            //env.AUTHOR = sh(returnStdout: true, script: "git --no-pager show -s --format='%an'").trim()
-                            //env.MESSAGE = sh(returnStdout: true, script: 'git log -1 --pretty=%B').trim()
                             echo 'Started'
                             notifySlack('STARTED')
-
                         }
 
                         container('sbt') {
@@ -153,19 +149,6 @@ podTemplate(label: label, containers: [
                                     sh('sbt clean coverage test;sbt coverageReport;')
                                     step([$class: 'ScoveragePublisher', reportDir: 'target/scala-2.11/scoverage-report', reportFile: 'scoverage.xml'])
                                     junit 'target/junit/*.xml'
-
-                                    script {
-                                        AbstractTestResultAction testResultAction =  currentBuild.rawBuild.getAction(AbstractTestResultAction.class)
-                                        if (testResultAction != null) {
-                                            def totalNumberOfTests = testResultAction.totalCount
-                                            def failedNumberOfTests = testResultAction.failCount
-                                            def failedDiff = testResultAction.failureDiffString
-                                            def skippedNumberOfTests = testResultAction.skipCount
-                                            def passedNumberOfTests = totalNumberOfTests - failedNumberOfTests - skippedNumberOfTests
-                                            def testReport = "Tests Report:\n Passed: ${passedNumberOfTests}; Failed: ${failedNumberOfTests} ${failedDiff}; Skipped: ${skippedNumberOfTests}  out of ${totalNumberOfTests} "
-                                            env.TEST_REPORT = testReport
-                                        }
-                                    }
                                 },
 
                                         "4.2 - Integration Tests": {
@@ -207,13 +190,11 @@ podTemplate(label: label, containers: [
 
                             }
                             echo 'Successfully completed'
-                            //currentBuild.result = "SUCCESS"
                             notifySlack('SUCCESS')
                             echo 'Success notification sent'
                         }
                     }
                     catch (e) {
-                        currentBuild.result = "FAILURE"
                         notifySlack('FAILURE')
                         throw e
                     } finally {
