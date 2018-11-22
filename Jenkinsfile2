@@ -75,7 +75,6 @@ def notifySlack(text, channel, attachments) {
     sh "curl -X POST --data-urlencode \'payload=${payload}\' ${slackURL}"
 }
 
-@NonCPS
 def slackNotifyStarted() {
     echo 'Notification Start'
     def colorSlack = '#D4DADF'
