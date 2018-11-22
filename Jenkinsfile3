@@ -13,14 +13,12 @@ def notifySlack(String buildStatus = 'STARTED', String channel = '#alerts') {
     echo 'Start notifySlack'
     buildStatus = buildStatus ?: 'SUCCESSFUL'
     channel = channel ?: '#alerts'
-
+    echo buildStatus
     echo 'get author and message'
     def commit = sh(returnStdout: true, script: 'git rev-parse HEAD')
     def author = sh(returnStdout: true, script: "git --no-pager show -s --format='%an' ${commit}").trim()
     def message = sh(returnStdout: true, script: 'git log -1 --pretty=%B').trim()
-    echo author
-    echo message
-    echo author + message
+    echo author + ', ' + message
 
     @NonCPS
     def getTestSummary = { ->
