@@ -106,22 +106,22 @@ def slackNotifySuccess() {
           fallback: "Navigation links",
           color: "${colorSlack}",
           actions: [
-            {
-              "type": "button",
-              "text": "Run output",
-              "url": "${env.RUN_DISPLAY_URL}",
-              "style": "primary"
-            },
-            {
-              "type": "button",
-              "text": "Changes",
-              "url": "${env.RUN_CHANGES_DISPLAY_URL}"
-            },
-            {
-              "type": "button",
-              "text": "Job output",
-              "url": "${env.JOB_DISPLAY_URL}"
-            }
+            [
+              type: "button",
+              text: "Run output",
+              url: "${env.RUN_DISPLAY_URL}",
+              style: "primary"
+            ],
+            [
+              type: "button",
+              text: "Changes",
+              url: "${env.RUN_CHANGES_DISPLAY_URL}"
+            ],
+            [
+              type: "button",
+              text: "Job output",
+              url: "${env.JOB_DISPLAY_URL}"
+            ]
           ]
         ],
         [
