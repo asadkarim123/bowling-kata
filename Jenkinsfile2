@@ -13,7 +13,7 @@ def author = ""
 def message = ""
 def testSummary = ""
 
-def getGitAuthor {
+def getGitAuthor() {
     def commit = sh(returnStdout: true, script: 'git rev-parse HEAD')
     return sh(returnStdout: true, script: "git --no-pager show -s --format='%an' ${commit}").trim()
 }
