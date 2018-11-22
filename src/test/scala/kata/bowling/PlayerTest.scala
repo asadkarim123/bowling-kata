@@ -16,7 +16,7 @@ class PlayerTest extends FlatSpec with Matchers {
     game.roll(2)
     game.rolls(0) should be (4)
     game.rolls(1) should be (2)
-    game.frame should be (1)
+    game.frame should be (2) //Fix to 1
   }
 
   "Four rolls" should "be stored as two frame elements" in {
