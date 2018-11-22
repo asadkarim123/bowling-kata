@@ -188,7 +188,9 @@ def slackNotifyFailure(e) {
         echo 'Failed tests' + failedTests
         slackMessage = slackMessage + "```" + testSummary + "```\n\t"
         slackMessage = slackMessage + "```" + failedTests + "```\n\t"
-        slackMessage = slackMessage + "```" + e.toString() + "```\n\t"
+        if (e != null){
+            slackMessage = slackMessage + "```" + e.toString() + "```\n\t"
+        }        
     } catch(ex) {
         // Do nothing
         echo 'Could not get test summary for failure'
