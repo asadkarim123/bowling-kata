@@ -10,16 +10,14 @@ import hudson.tasks.junit.CaseResult
 def label = "mypod-${UUID.randomUUID().toString()}"
 def project = "alert-inquiry-205619"
 def slackNotificationChannel = "#alerts"
-def author = ""
-def message = ""
-def testSummary = ""
 
+@NonCPS
 def populateGitInfo() {
     def commit = sh(returnStdout: true, script: 'git rev-parse HEAD')
-    author = sh(returnStdout: true, script: "git --no-pager show -s --format='%an' ${commit}").trim()
-    echo author + '(inside method)'
-    message = sh(returnStdout: true, script: 'git log -1 --pretty=%B').trim()
-    echo message + '(inside method)'
+    env.AUTHOR = sh(returnStdout: true, script: "git --no-pager show -s --format='%an' ${commit}").trim()
+    echo env.AUTHOR + '(inside method)'
+    env.MESSAGE = sh(returnStdout: true, script: 'git log -1 --pretty=%B').trim()
+    echo env.MESSAGE + '(inside method)'
 }
 
 @NonCPS
@@ -61,6 +59,7 @@ def getFailedTests = { ->
     return failedTestsString
 }
 
+@NonCPS
 def notifySlack(text, channel, attachments) {
     def slackURL = 'https://hooks.slack.com/services/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'
     def jenkinsIcon = 'https://wiki.jenkins-ci.org/download/attachments/2916393/logo.png'
@@ -75,16 +74,17 @@ def notifySlack(text, channel, attachments) {
     sh "curl -X POST --data-urlencode \'payload=${payload}\' ${slackURL}"
 }
 
+@NonCPS
 def slackNotifyStarted() {
     echo 'Notification Start'
     def colorSlack = '#D4DADF'
     populateGitInfo()
     echo 'Git info populated'
-    echo author + message
+    echo env.AUTHOR + env.MESSAGE
     def slackMessage = ""
     def subject = "*STARTED*: Job `${env.JOB_NAME}` [<${env.RUN_DISPLAY_URL}|#${env.BUILD_NUMBER}>] (<${env.RUN_CHANGES_DISPLAY_URL}|  Changes>)"
     slackMessage = slackMessage + subject + "\n\t"
-    slackMessage = slackMessage + "*" + message + "* by (" + author + ")\n\t"
+    slackMessage = slackMessage + "*" + env.MESSAGE + "* by (" + env.AUTHOR + ")\n\t"
 
     slackSend channel: '#alerts', color: colorSlack, message: slackMessage
 }
@@ -106,14 +106,15 @@ def slackNotifySuccess() {
             actions: [
             [
               type: "button",
-              text: "Run output",
+              text: "Pipeline",
               url: "${env.RUN_DISPLAY_URL}",
               style: "primary"
             ],
             [
               type: "button",
               text: "Changes",
-              url: "${env.RUN_CHANGES_DISPLAY_URL}"
+              url: "${env.RUN_CHANGES_DISPLAY_URL}",
+              style: "${colorSlack}"
             ],
             [
               type: "button",
@@ -134,11 +135,11 @@ def slackNotifySuccess() {
                     short: true
                 ]
             ]
-        ],
-        [
-           "fallback": "Sunny weather!",
-           "image_url": "https://www.clipartmax.com/png/middle/165-1652318_public-domain-icons-simple-weather-icons-sunny.png"
-        ]
+        ]//,
+        //[
+           //"fallback": "Sunny weather!",
+           //"image_url": "https://www.clipartmax.com/png/middle/165-1652318_public-domain-icons-simple-weather-icons-sunny.png"
+        //]
     ])
 }
 
@@ -216,9 +217,6 @@ ansiColor('xterm') {
                                         }
                                     }
                                     checkout scm
-
-                                    env.AUTHOR = sh(returnStdout: true, script: "git --no-pager show -s --format='%an'").trim()
-                                    env.MESSAGE = sh(returnStdout: true, script: 'git log -1 --pretty=%B').trim()
                                     echo 'Started'
                                     slackNotifyStarted()
 
