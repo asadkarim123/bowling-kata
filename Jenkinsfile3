@@ -125,7 +125,7 @@ podTemplate(label: label, containers: [
                             }
                             checkout scm
                             echo 'Started'
-                            notifySlack('STARTED')
+                            //notifySlack('STARTED')
                         }
 
                         container('sbt') {
