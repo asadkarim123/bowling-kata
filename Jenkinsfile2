@@ -105,20 +105,23 @@ String getTestSummary() {
 @NonCPS
 def getFailedTests() {
     def testResultAction = currentBuild.rawBuild.getAction(AbstractTestResultAction.class)
-    def failedTestsString = "```"
+    def failedTestsString = ""
 
     if (testResultAction != null) {
+        echo 'check test failures 1'
         def failedTests = testResultAction.getFailedTests()
-
+        echo 'check test failures 2'
         if (failedTests.size() > 9) {
             failedTests = failedTests.subList(0, 8)
         }
-
+        echo 'check test failures 3'
         for(CaseResult cr : failedTests) {
+            echo 'check test failures loop'
             failedTestsString = failedTestsString + "${cr.getFullDisplayName()}:\n${cr.getErrorDetails()}\n\n"
         }
-        failedTestsString = failedTestsString + "```"
+        echo 'check test failures 4'
     }
+    echo 'check test failures 5' + failedTestsString
     return failedTestsString
 }
 
@@ -172,7 +175,7 @@ def slackNotifySuccess() {
 }
 
 @NonCPS
-def slackNotifyFailure() {
+def slackNotifyFailure(e) {
     echo 'Notify failure'
     def colorSlack = '#FF9FA1'
     def slackMessage = "FAILURE: Job `${env.JOB_NAME}` [<${env.BUILD_URL}|#${env.BUILD_NUMBER}>] (<${env.RUN_DISPLAY_URL}|  Pipeline>)\n\t"
@@ -185,44 +188,12 @@ def slackNotifyFailure() {
         echo 'Failed tests' + failedTests
         slackMessage = slackMessage + "```" + testSummary + "```\n\t"
         slackMessage = slackMessage + "```" + failedTests + "```\n\t"
-    } catch(e) {
+        slackMessage = slackMessage + "```" + e.toString() + "```\n\t"
+    } catch(ex) {
         // Do nothing
         echo 'Could not get test summary for failure'
     }
     
-    slackSend channel: '#alerts', color: colorSlack, message: slackMessage
-}
-
-@NonCPS
-def slackNotify(String buildStatus = 'STARTED') {
-
-    // if the status for Build is null this would mean a successful build.
-    buildStatus = buildStatus ?: 'SUCCESS'
-
-    def colorSlack
-    if (buildStatus == 'STARTED') {
-        colorSlack = '#D4DADF'
-    } else if (buildStatus == 'SUCCESS') {
-        colorSlack = '#BDFFC3'
-    } else if (buildStatus == 'UNSTABLE') {
-        colorSlack = '#FFFE89'
-    }
-    else if (buildStatus == 'ENDED') {
-        colorSlack = '#FFFE89'
-    }
-   else {
-        colorSlack = '#FF9FA1'
-    }
-
-    def slackMessage = ""
-    def subject = "${buildStatus}: Job `${env.JOB_NAME}` [<${env.RUN_DISPLAY_URL}|#${env.BUILD_NUMBER}>] (<${env.RUN_CHANGES_DISPLAY_URL}|  Changes>)"
-    slackMessage = slackMessage + subject + "\n\t"
-
-    if (buildStatus != 'STARTED') {
-        slackMessage = slackMessage + env.MESSAGE + " by (" + env.AUTHOR + ")\n\t"
-        //slackMessage = slackMessage + env.DEPENDENCY_UPDATES + "\n\t"
-    }
-
     slackSend channel: '#alerts', color: colorSlack, message: slackMessage
 }
 
