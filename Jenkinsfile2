@@ -75,7 +75,6 @@ def notifySlack(text, channel, attachments) {
     sh "curl -X POST --data-urlencode \'payload=${payload}\' ${slackURL}"
 }
 
-@NonCPS
 def slackNotifyStarted() {
     echo 'Notification Start'
     def colorSlack = '#D4DADF'
@@ -102,8 +101,8 @@ def slackNotifySuccess() {
             title: "SUCCESS: Job `${env.JOB_NAME}` [Build #${env.BUILD_NUMBER}]",
             title_link: "${env.BUILD_URL}",
             color: "${colorSlack}",
-            author_name: "${env.AUTHOR}",
-            text: "${env.MESSAGE}",
+            author_name: "${author}",
+            text: "${message}",
             actions: [
             [
               type: "button",
