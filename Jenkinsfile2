@@ -10,18 +10,16 @@ import hudson.tasks.junit.CaseResult
 def label = "mypod-${UUID.randomUUID().toString()}"
 def project = "alert-inquiry-205619"
 def slackNotificationChannel = "#alerts"
+def author = ""
 def message = ""
 def testSummary = ""
 
-String getGitAuthor() {
+def populateGitInfo() {
     def commit = sh(returnStdout: true, script: 'git rev-parse HEAD')
-    def author = sh(returnStdout: true, script: "git --no-pager show -s --format='%an' ${commit}").trim()
-    echo author
-    return author
-}
-
-def getLastCommitMessage = { ->
-    return sh(returnStdout: true, script: 'git log -1 --pretty=%B').trim()
+    author = sh(returnStdout: true, script: "git --no-pager show -s --format='%an' ${commit}").trim()
+    echo author + '(inside method)'
+    message = sh(returnStdout: true, script: 'git log -1 --pretty=%B').trim()
+    echo message + '(inside method)'
 }
 
 @NonCPS
@@ -34,6 +32,7 @@ String getTestSummary() {
         def failed = testResultAction.getFailCount()
         def failedDiff = testResultAction.failureDiffString
         def skipped = testResultAction.getSkipCount()
+        def passed = total - failed - skipped
 
         summary = "Passed: ${passed}; Failed: ${failed} ${failedDiff}; Skipped: ${skipped}  out of ${total} "
     } else {
@@ -62,13 +61,6 @@ def getFailedTests = { ->
     return failedTestsString
 }
 
-def populateGlobalVariables = {
-    author = getGitAuthor()
-    message = getLastCommitMessage()
-    testSummary = getTestSummary()
-}
-
-
 def notifySlack(text, channel, attachments) {
     def slackURL = 'https://hooks.slack.com/services/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'
     def jenkinsIcon = 'https://wiki.jenkins-ci.org/download/attachments/2916393/logo.png'
@@ -87,12 +79,13 @@ def notifySlack(text, channel, attachments) {
 def slackNotifyStarted() {
     echo 'Notification Start'
     def colorSlack = '#D4DADF'
-    def author = getGitAuthor()
-    echo author
+    populateGitInfo()
+    echo 'Git info populated'
+    echo author + message
     def slackMessage = ""
     def subject = "*STARTED*: Job `${env.JOB_NAME}` [<${env.RUN_DISPLAY_URL}|#${env.BUILD_NUMBER}>] (<${env.RUN_CHANGES_DISPLAY_URL}|  Changes>)"
     slackMessage = slackMessage + subject + "\n\t"
-    slackMessage = slackMessage + "*" + env.MESSAGE + "* by (" + author + ")\n\t"
+    slackMessage = slackMessage + "*" + message + "* by (" + author + ")\n\t"
 
     slackSend channel: '#alerts', color: colorSlack, message: slackMessage
 }
@@ -102,6 +95,7 @@ def slackNotifySuccess() {
     echo 'Notification Success'
     def colorSlack = '#229954'
     def testSummary = getTestSummary()
+    echo 'Test summary completed'
     echo 'Test summary ${testSummary}'
     notifySlack("", "#alerts", [
         [
@@ -137,7 +131,7 @@ def slackNotifySuccess() {
                 ],
                 [
                     title: "Test Results",
-                    value: "Placeholder",
+                    value: "${testSummary}",
                     short: true
                 ]
             ]
