@@ -13,13 +13,13 @@ def author = ""
 def message = ""
 def testSummary = ""
 
-def getGitAuthor = { 
+def getGitAuthor = { ->
     def commit = sh(returnStdout: true, script: 'git rev-parse HEAD')
-    author = sh(returnStdout: true, script: "git --no-pager show -s --format='%an' ${commit}").trim()
+    return sh(returnStdout: true, script: "git --no-pager show -s --format='%an' ${commit}").trim()
 }
 
-def getLastCommitMessage = { 
-    message = sh(returnStdout: true, script: 'git log -1 --pretty=%B').trim()
+def getLastCommitMessage = { ->
+    return sh(returnStdout: true, script: 'git log -1 --pretty=%B').trim()
 }
 
 @NonCPS
@@ -91,7 +91,7 @@ def slackNotifyStarted() {
     def slackMessage = ""
     def subject = "*STARTED*: Job `${env.JOB_NAME}` [<${env.RUN_DISPLAY_URL}|#${env.BUILD_NUMBER}>] (<${env.RUN_CHANGES_DISPLAY_URL}|  Changes>)"
     slackMessage = slackMessage + subject + "\n\t"
-    slackMessage = slackMessage + "*" + env.MESSAGE + "* by (" + env.AUTHOR + ")\n\t"
+    slackMessage = slackMessage + "*" + env.MESSAGE + "* by (" + getGitAuthor() + ")\n\t"
 
     slackSend channel: '#alerts', color: colorSlack, message: slackMessage
 }
