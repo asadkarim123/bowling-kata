@@ -13,7 +13,7 @@ def author = ""
 def message = ""
 def testSummary = ""
 
-def getGitAuthor() {
+String getGitAuthor() {
     def commit = sh(returnStdout: true, script: 'git rev-parse HEAD')
     return sh(returnStdout: true, script: "git --no-pager show -s --format='%an' ${commit}").trim()
 }
@@ -83,7 +83,7 @@ def notifySlack(text, channel, attachments) {
 
 @NonCPS
 def slackNotifyStarted() {
-
+    echo 'Notification Start'
     def colorSlack = '#D4DADF'
     def author = getGitAuthor()
     echo 'author ${author}'
