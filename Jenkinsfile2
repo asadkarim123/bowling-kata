@@ -286,7 +286,7 @@ ansiColor('xterm') {
                             }
                         }
                   catch (e) {
-                      slackNotifyFailure()
+                      slackNotifyFailure(e)
                       throw e
                   } finally {
                       //slackNotify(currentBuild.result)
