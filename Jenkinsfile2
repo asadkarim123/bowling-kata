@@ -82,8 +82,6 @@ def notifySlack(text, channel, attachments) {
 }
 
 
-
-@NonCPS
 def slackNotifyStarted() {
 
     def colorSlack = '#D4DADF'
