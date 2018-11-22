@@ -26,12 +26,13 @@ def notifySlack(String buildStatus = 'STARTED', String channel = '#alerts') {
     def getTestSummary = { ->
         def testResultAction = currentBuild.rawBuild.getAction(AbstractTestResultAction.class)
         def summary = ""
-
+        echo testResultAction
         if (testResultAction != null) {
             def total = testResultAction.getTotalCount()
             def failed = testResultAction.getFailCount()
-            def failedDiff = testResultAction.failureDiffString
+            def failedDiff = testResultAction.failureDiffString()
             def skipped = testResultAction.getSkipCount()
+            def passed = total - failed - skipped
 
             summary = "Passed: ${passed}; Failed: ${failed} ${failedDiff}; Skipped: ${skipped}  out of ${total} "
         } else {
