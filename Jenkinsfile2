@@ -59,14 +59,12 @@ def slackNotifyStarted() {
             [
               type: "button",
               text: "Changes",
-              url: "${env.RUN_CHANGES_DISPLAY_URL}",
-              style: "${colorSlack}"
+              url: "${env.RUN_CHANGES_DISPLAY_URL}"
             ],
             [
               type: "button",
               text: "Job history",
-              url: "${env.JOB_DISPLAY_URL}",
-              style: "primary"
+              url: "${env.JOB_DISPLAY_URL}"
             ]
           ],
           fields: [
@@ -130,7 +128,7 @@ def slackNotifySuccess() {
     def colorSlack = '#229954'
     def testSummary = getTestSummary()
     echo 'Test summary completed'
-    echo 'Test summary ${testSummary}'
+    echo 'Test summary' + testSummary
     notifySlack("", "#alerts", [
         [
             title: "SUCCESS: Job `${env.JOB_NAME}` [Build #${env.BUILD_NUMBER}]",
@@ -149,7 +147,7 @@ def slackNotifySuccess() {
               type: "button",
               text: "Changes",
               url: "${env.RUN_CHANGES_DISPLAY_URL}",
-              style: "${colorSlack}"
+              style: "primary"
             ],
             [
               type: "button",
@@ -160,21 +158,16 @@ def slackNotifySuccess() {
           ],
           fields: [
                 [
-                    title: "Git Branch",
-                    value: "${env.GIT_BRANCH}",
-                    short: true
-                ],
-                [
                     title: "Test Results",
                     value: "${testSummary}",
                     short: true
                 ]
             ]
-        ]//,
-        //[
-           //"fallback": "Sunny weather!",
-           //"image_url": "https://www.clipartmax.com/png/middle/165-1652318_public-domain-icons-simple-weather-icons-sunny.png"
-        //]
+        ],
+        [
+           "fallback": "Sunny weather!",
+           "image_url": "https://www.clipartmax.com/png/middle/165-1652318_public-domain-icons-simple-weather-icons-sunny.png"
+        ]
     ])
 }
 
@@ -184,10 +177,10 @@ def slackNotifyFailure() {
     def colorSlack = '#FF9FA1'
     def testSummary = getTestSummary()
     echo 'Test summary completed'
-    echo 'Test summary ${testSummary}'
+    echo 'Test summary' + testSummary
     def failedTests = getFailedTests()
     echo 'Failed tests completed'
-    echo 'Failed tests ${failedTests}'
+    echo 'Failed tests' + failedTests
     
     notifySlack("", "#alerts", [
         [
@@ -207,13 +200,13 @@ def slackNotifyFailure() {
               type: "button",
               text: "Changes",
               url: "${env.RUN_CHANGES_DISPLAY_URL}",
-              style: "${colorSlack}"
+              style: "danger"
             ],
             [
               type: "button",
               text: "Job history",
               url: "${env.JOB_DISPLAY_URL}",
-              style: "primary"
+              style: "danger"
             ]
           ],
           fields: [
