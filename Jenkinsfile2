@@ -175,54 +175,22 @@ def slackNotifySuccess() {
 def slackNotifyFailure() {
     echo 'Notify failure'
     def colorSlack = '#FF9FA1'
-    def testSummary = getTestSummary()
-    echo 'Test summary completed'
-    echo 'Test summary' + testSummary
-    def failedTests = getFailedTests()
-    echo 'Failed tests completed'
-    echo 'Failed tests' + failedTests
+    def slackMessage = "FAILURE: Job `${env.JOB_NAME}` [<${env.BUILD_URL}|#${env.BUILD_NUMBER}>] (<${env.RUN_DISPLAY_URL}|  Pipeline>)\n\t"
+    try{
+        def testSummary = getTestSummary()
+        echo 'Test summary completed'
+        echo 'Test summary' + testSummary
+        def failedTests = getFailedTests()
+        echo 'Failed tests completed'
+        echo 'Failed tests' + failedTests
+        slackMessage = slackMessage + "```" + testSummary + "```\n\t"
+        slackMessage = slackMessage + "```" + failedTests + "```\n\t"
+    } catch(e) {
+        // Do nothing
+        echo 'Could not get test summary for failure'
+    }
     
-    notifySlack("", "#alerts", [
-        [
-            title: "FAILURE: Job `${env.JOB_NAME}` [Build #${env.BUILD_NUMBER}]",
-            title_link: "${env.BUILD_URL}",
-            color: "${colorSlack}",
-            author_name: "${author}",
-            text: "${message}",
-            actions: [
-            [
-              type: "button",
-              text: "Pipeline",
-              url: "${env.RUN_DISPLAY_URL}",
-              style: "danger"
-            ],
-            [
-              type: "button",
-              text: "Changes",
-              url: "${env.RUN_CHANGES_DISPLAY_URL}",
-              style: "danger"
-            ],
-            [
-              type: "button",
-              text: "Job history",
-              url: "${env.JOB_DISPLAY_URL}",
-              style: "danger"
-            ]
-          ],
-          fields: [
-                [
-                    title: "Test Results",
-                    value: "${testSummary}",
-                    short: true
-                ],
-                [
-                    title: "Failed tests",
-                    value: "${failedTests}",
-                    short: true
-                ]
-            ]
-        ]
-    ])
+    slackSend channel: '#alerts', color: colorSlack, message: slackMessage
 }
 
 @NonCPS
