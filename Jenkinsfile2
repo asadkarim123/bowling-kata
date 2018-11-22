@@ -85,11 +85,12 @@ def notifySlack(text, channel, attachments) {
 def slackNotifyStarted() {
 
     def colorSlack = '#D4DADF'
-
+    def author = getGitAuthor()
+    echo 'author ${author}'
     def slackMessage = ""
     def subject = "*STARTED*: Job `${env.JOB_NAME}` [<${env.RUN_DISPLAY_URL}|#${env.BUILD_NUMBER}>] (<${env.RUN_CHANGES_DISPLAY_URL}|  Changes>)"
     slackMessage = slackMessage + subject + "\n\t"
-    slackMessage = slackMessage + "*" + env.MESSAGE + "* by (" + getGitAuthor() + ")\n\t"
+    slackMessage = slackMessage + "*" + env.MESSAGE + "* by (" + author + ")\n\t"
 
     slackSend channel: '#alerts', color: colorSlack, message: slackMessage
 }
@@ -101,9 +102,12 @@ def slackNotifySuccess() {
 
     notifySlack("", "#alerts", [
         [
-          fallback: "Navigation links",
-          color: "${colorSlack}",
-          actions: [
+            title: "SUCCESS: Job `${env.JOB_NAME}` [Build #${env.BUILD_NUMBER}]",
+            title_link: "${env.BUILD_URL}",
+            color: "${colorSlack}",
+            author_name: "${env.AUTHOR}",
+            text: "${env.MESSAGE}",
+            actions: [
             [
               type: "button",
               text: "Run output",
@@ -117,18 +121,12 @@ def slackNotifySuccess() {
             ],
             [
               type: "button",
-              text: "Job output",
-              url: "${env.JOB_DISPLAY_URL}"
+              text: "Job history",
+              url: "${env.JOB_DISPLAY_URL}",
+              style: "primary"
             ]
-          ]
-        ],
-        [
-            title: "*SUCCESS*: Job `${env.JOB_NAME}` [<${env.RUN_DISPLAY_URL}|#${env.BUILD_NUMBER}>] (<${env.RUN_CHANGES_DISPLAY_URL}|  Changes>)",
-            title_link: "${env.BUILD_URL}",
-            color: "${colorSlack}",
-            author_name: "${env.AUTHOR}",
-            text: "${env.MESSAGE}",
-            fields: [
+          ],
+          fields: [
                 [
                     title: "Branch",
                     value: "${env.GIT_BRANCH}",
